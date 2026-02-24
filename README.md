@@ -7,6 +7,33 @@ Python starter scaffold for building a turn-based game with:
 
 The app now runs in a separate window using `pygame`.
 
+## Virtual environment (Windows / PowerShell)
+
+Create a virtual environment in the repo root:
+
+```powershell
+python -m venv .venv
+```
+
+Activate it:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+If PowerShell blocks activation, allow scripts for your current session and try again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+Upgrade packaging tools (recommended):
+
+```powershell
+python -m pip install --upgrade pip
+```
+
 ## Project structure
 
 ```text
@@ -49,14 +76,39 @@ The app now runs in a separate window using `pygame`.
 python -m pip install -r requirements.txt
 ```
 
+Or (without activation):
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements.txt
+```
+
+Troubleshooting: if you see `No module named pip`, run:
+
+```powershell
+python -m ensurepip --upgrade
+python -m pip --version
+```
+
 ## Run
 
 ```powershell
 python -m src.main
 ```
 
+Or you can run with the venv interpreter directly:
+
+```powershell
+.\.venv\Scripts\python -m src.main
+```
+
 ## Test
 
 ```powershell
 python -m pytest -q
+```
+
+Or:
+
+```powershell
+.\.venv\Scripts\python -m pytest -q
 ```

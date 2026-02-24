@@ -1,0 +1,6 @@
+Metadata-Version: 2.4
+Name: game-agent-project
+Version: 0.1.0
+Summary: Starter project for a game with UI and AI agents
+Requires-Python: >=3.10
+Requires-Dist: pygame>=2.5
