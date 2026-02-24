@@ -3,14 +3,18 @@ import math
 import pygame
 
 from src.agent.base import BaseAgent
+from src.agent.minimax_agent import MinimaxAgent
+from src.agent.random_agent import RandomAgent
 from src.game.engine import GameEngine
 from src.game.rules import WIN_LINES
 
 
 class PygameController:
-    def __init__(self, engine: GameEngine, ai_agent: BaseAgent) -> None:
+    def __init__(self, engine: GameEngine, ai_agent: BaseAgent | None = None) -> None:
         self.engine = engine
         self.ai_agent = ai_agent
+        self.agent_label = "None"
+        self.view_state = "menu"
 
         self.min_window_w = 640
         self.min_window_h = 720
@@ -44,6 +48,8 @@ class PygameController:
         self.cell_size = 0
         self.panel_rect = pygame.Rect(0, 0, 0, 0)
         self.restart_button = pygame.Rect(0, 0, 0, 0)
+        self.random_button = pygame.Rect(0, 0, 0, 0)
+        self.minimax_button = pygame.Rect(0, 0, 0, 0)
 
     def run(self) -> None:
         pygame.init()
@@ -68,7 +74,10 @@ class PygameController:
                 elif event.type == pygame.WINDOWRESTORED:
                     self.is_minimized = False
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    self._handle_click(event.pos)
+                    if self.view_state == "menu":
+                        self._handle_menu_click(event.pos)
+                    else:
+                        self._handle_click(event.pos)
 
             self._maybe_play_ai_turn()
 
@@ -125,6 +134,17 @@ class PygameController:
         self.panel_rect = panel_rect
         self.restart_button = restart_button
 
+        menu_card_w = int(min(width * 0.82, 680))
+        menu_card_h = int(min(height * 0.52, 420))
+        menu_card = pygame.Rect((width - menu_card_w) // 2, (height - menu_card_h) // 2, menu_card_w, menu_card_h)
+        menu_button_w = int(menu_card.width * 0.72)
+        menu_button_h = max(56, int(menu_card.height * 0.16))
+        menu_button_x = menu_card.centerx - menu_button_w // 2
+        random_button_y = menu_card.y + int(menu_card.height * 0.48)
+        minimax_button_y = random_button_y + menu_button_h + max(14, int(height * 0.018))
+        self.random_button = pygame.Rect(menu_button_x, random_button_y, menu_button_w, menu_button_h)
+        self.minimax_button = pygame.Rect(menu_button_x, minimax_button_y, menu_button_w, menu_button_h)
+
         return {
             "width": width,
             "height": height,
@@ -136,7 +156,22 @@ class PygameController:
             "text_block_x": text_block_x,
             "text_block_y": text_block_y,
             "text_block_w": text_block_w,
+            "menu_card": menu_card,
         }
+
+    def _handle_menu_click(self, pos: tuple[int, int]) -> None:
+        if self.random_button.collidepoint(pos):
+            self._start_game(RandomAgent(), "Random Agent")
+            return
+        if self.minimax_button.collidepoint(pos):
+            self._start_game(MinimaxAgent(), "Minimax Agent")
+
+    def _start_game(self, agent: BaseAgent, label: str) -> None:
+        self.ai_agent = agent
+        self.agent_label = label
+        self.view_state = "game"
+        self.engine.reset()
+        self._ai_due_at = 0
 
     def _handle_click(self, pos: tuple[int, int]) -> None:
         if self.restart_button.collidepoint(pos):
@@ -158,6 +193,8 @@ class PygameController:
         self.engine.make_move(index)
 
     def _maybe_play_ai_turn(self) -> None:
+        if self.view_state != "game" or self.ai_agent is None:
+            return
         if self.engine.is_over() or self.engine.state.current_player != "O":
             return
 
@@ -173,12 +210,50 @@ class PygameController:
 
     def _draw(self, screen: pygame.Surface, layout: dict[str, int | pygame.Rect]) -> None:
         self._draw_gradient_background(screen, int(layout["width"]), int(layout["height"]))
+        if self.view_state == "menu":
+            self._draw_startup_menu(screen, layout)
+            return
         self._draw_title(screen, layout)
         self._draw_board_surface(screen)
         self._draw_hover_cell(screen)
         self._draw_marks(screen)
         self._draw_win_line(screen)
         self._draw_status_panel(screen, layout)
+
+    def _draw_startup_menu(self, screen: pygame.Surface, layout: dict[str, int | pygame.Rect]) -> None:
+        width = int(layout["width"])
+        height = int(layout["height"])
+        menu_card = layout["menu_card"]
+        assert isinstance(menu_card, pygame.Rect)
+
+        title_font = self._fit_font("Tic-Tac-Toe Arena", int(width * 0.7), 64, 28, True)
+        subtitle_font = self._fit_font("Choose the agent to play against", int(menu_card.width * 0.86), 32, 16, False)
+        button_font = self._fit_font("Minimax Agent", int(self.minimax_button.width * 0.8), 32, 16, True)
+
+        title = title_font.render("Tic-Tac-Toe Arena", True, (244, 248, 255))
+        title_rect = title.get_rect(center=(width // 2, int(height * 0.18)))
+        screen.blit(title, title_rect)
+
+        shadow = menu_card.move(0, max(6, int(height * 0.01)))
+        pygame.draw.rect(screen, self.colors["board_shadow"], shadow, border_radius=18)
+        pygame.draw.rect(screen, self.colors["panel"], menu_card, border_radius=18)
+        pygame.draw.rect(screen, self.colors["panel_border"], menu_card, 2, border_radius=18)
+
+        subtitle = subtitle_font.render("Choose the agent to play against", True, self.colors["text_dark"])
+        subtitle_rect = subtitle.get_rect(center=(menu_card.centerx, menu_card.y + int(menu_card.height * 0.28)))
+        screen.blit(subtitle, subtitle_rect)
+
+        self._draw_menu_button(screen, self.random_button, "Random Agent", button_font)
+        self._draw_menu_button(screen, self.minimax_button, "Minimax Agent", button_font)
+
+    def _draw_menu_button(self, screen: pygame.Surface, rect: pygame.Rect, label: str, font: pygame.font.Font) -> None:
+        mouse_pos = pygame.mouse.get_pos()
+        button_color = self.colors["button_hover"] if rect.collidepoint(mouse_pos) else self.colors["button"]
+        pygame.draw.rect(screen, button_color, rect, border_radius=max(10, rect.height // 4))
+        pygame.draw.rect(screen, (13, 38, 63), rect, 2, border_radius=max(10, rect.height // 4))
+        text = font.render(label, True, self.colors["button_text"])
+        text_rect = text.get_rect(center=rect.center)
+        screen.blit(text, text_rect)
 
     def _draw_gradient_background(self, screen: pygame.Surface, width: int, height: int) -> None:
         for y in range(height):
@@ -351,15 +426,17 @@ class PygameController:
         return cx, cy
 
     def _status_text(self) -> str:
+        if self.agent_label != "None" and self.engine.state.winner is None and not self.engine.state.is_draw:
+            if self.engine.state.current_player == "X":
+                return f"Your turn (X) vs {self.agent_label}"
+            return f"Agent is thinking (O) - {self.agent_label}"
         if self.engine.state.winner == "X":
             return "You won this round"
         if self.engine.state.winner == "O":
             return "Agent wins this round"
         if self.engine.state.is_draw:
             return "Draw game"
-        if self.engine.state.current_player == "X":
-            return "Your turn (X)"
-        return "Agent is thinking (O)"
+        return "Your turn (X)"
 
     def _hint_text(self) -> str:
         if self.engine.is_over():
