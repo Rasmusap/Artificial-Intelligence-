@@ -1,4 +1,9 @@
 __pycache__/
 .venv/
+kalaha-venv/
+*-venv/
+venv/
 *.pyc
+*.pyo
 .pytest_cache/
+.DS_Store
