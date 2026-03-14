@@ -1,4 +1,4 @@
-
+from dataclasses import dataclass, field
 # Players
 P1 = 0
 P2 = 1
@@ -15,10 +15,13 @@ Board_size = 14
 def opposite_pit(i: int) -> int:
     return 12 - i
 
-
+@dataclass
 class GameState:
-    board: list # 14 integers
-    current_player: int  # 0 for Player 1, 1 for Player 2
+    board: list
+    current_player: int
+
+    def copy(self):
+        return GameState(board=self.board[:], current_player=self.current_player)
 
 def initial_state():
     return GameState(
@@ -85,10 +88,13 @@ def result(state, action):
         for i in P2_pits:
             board[P2_store] += board[i]
             board[i] = 0
+    else:
+        if not extra_turn:
+            new_state.current_player = 1 - current_player
 
     return new_state
 
-def terminal(state):
+def terminal_test(state):
     # the game is terminal if one player's pits are all empty
     P1_empty = all(state.board[i] == 0 for i in P1_pits)
     P2_empty = all(state.board[i] == 0 for i in P2_pits)
