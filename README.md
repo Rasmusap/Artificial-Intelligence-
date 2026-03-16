@@ -19,9 +19,16 @@ A complete graphical user interface for playing Kalaha against a powerful minima
 - **Smooth UI** – Buttons, hover effects, status indicators
 
 ## How to Run
+
+### GUI Version
 From the `src` directory:
 ```bash
 python kalaha_gui.py
+```
+### CLI Version
+From the `src` directory:
+```bash
+python main.py
 ```
 
 ## How to Play
