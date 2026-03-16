@@ -81,7 +81,47 @@ class KalahGUI:
         self.board_offset_x = (self.width - board_width) // 2 + 30
         self.board_offset_y = (self.height - board_height) // 2 - 10
         
+        self._legal_moves_cache = set()
+        self._cached_state_id = None
         self.setup_buttons()
+        self._precompute_positions()
+        self._cache_static_surfaces()
+
+    def _precompute_positions(self):
+        self.p1_pit_positions = [
+            (self.board_offset_x + self.pit_spacing_x * i,
+             self.board_offset_y + self.pit_spacing_y)
+            for i in range(len(P1_pits))
+        ]
+        self.p2_pit_positions = [
+            (self.board_offset_x + self.pit_spacing_x * (5 - i),
+             self.board_offset_y + 20)
+            for i in range(len(P2_pits))
+        ]
+        self.p2_store_pos = (self.board_offset_x - 120, self.board_offset_y + 20)
+        self.p1_store_pos = (self.board_offset_x + 5.5 * self.pit_spacing_x + 80,
+                             self.board_offset_y + self.pit_spacing_y)
+        board_left = self.board_offset_x - 80
+        board_right = self.board_offset_x + 6 * self.pit_spacing_x + 80
+        board_top = self.board_offset_y - 70
+        board_bottom = self.board_offset_y + self.pit_spacing_y + 90
+        self.board_rect = pygame.Rect(board_left, board_top,
+                                      board_right - board_left, board_bottom - board_top)
+
+    def _cache_static_surfaces(self):
+        self.surf_ai_store_label = self.font_tiny.render("AI Store", True, WHITE)
+        self.surf_p1_store_label = self.font_tiny.render("Your Store", True, WHITE)
+        self.surf_p2_label = self.font_small.render("Player 2 (AI)", True, WHITE)
+        self.surf_p1_label = self.font_small.render("Player 1 (You)", True, WHITE)
+        self.surf_pit_numbers = [self.font_tiny.render(str(i + 1), True, WHITE)
+                                 for i in range(6)]
+
+    def _get_legal_moves(self):
+        state_id = id(self.state)
+        if state_id != self._cached_state_id:
+            self._legal_moves_cache = set(actions(self.state))
+            self._cached_state_id = state_id
+        return self._legal_moves_cache
 
     def setup_buttons(self):
         button_width = 250
@@ -136,131 +176,95 @@ class KalahGUI:
                 self.screen.blit(text, (100, y))
             y += 25
 
-    def draw_pit(self, x, y, pit_idx, radius=None, is_hovered=False):
-        if radius is None:
-            radius = self.pit_radius
-        
+    def draw_pit(self, x, y, pit_idx, legal_moves, is_hovered=False):
         stones = self.state.board[pit_idx]
         color = LIGHT_BROWN
 
         if pit_idx == self.selected_pit:
             color = YELLOW
-        # Highlight hovered pit (only for player's pits)
         elif is_hovered and pit_idx in P1_pits:
             color = (255, 200, 100)
-        elif pit_idx in actions(self.state):
+        elif pit_idx in legal_moves:
             color = (200, 220, 100)
-        
-        pygame.draw.circle(self.screen, color, (int(x), int(y)), int(radius))
-        pygame.draw.circle(self.screen, BLACK, (int(x), int(y)), int(radius), 3)
-        
-        # Draw stones count
+
+        ix, iy, ir = int(x), int(y), int(self.pit_radius)
+        pygame.draw.circle(self.screen, color, (ix, iy), ir)
+        pygame.draw.circle(self.screen, BLACK, (ix, iy), ir, 3)
+
         text = self.font_medium.render(str(stones), True, BLACK)
-        self.screen.blit(text, (int(x - text.get_width() // 2), int(y - text.get_height() // 2)))
+        self.screen.blit(text, (ix - text.get_width() // 2, iy - text.get_height() // 2))
 
     def draw_board(self):
         self.screen.fill(GREEN)
-        
-        # Header
+
         self.btn_back.draw(self.screen, self.font_small)
         self.btn_restart.draw(self.screen, self.font_small)
-        
+
         current_player = player(self.state)
-        player_text = "Your Turn (Player 1)" if current_player == P1 else "AI Thinking... (Player 2)"
-        if self.ai_thinking:
-            player_text = "AI Thinking..."
-        color = BLUE if current_player == P1 else RED
-        
-        status = self.font_medium.render(player_text, True, color)
+        player_text = "AI Thinking..." if self.ai_thinking else (
+            "Your Turn (Player 1)" if current_player == P1 else "AI Thinking... (Player 2)"
+        )
+        status = self.font_medium.render(player_text, True, BLUE if current_player == P1 else RED)
         self.screen.blit(status, (self.width // 2 - status.get_width() // 2, 20))
-        
-        # Calculate board boundaries for centered layout
-        board_left = self.board_offset_x - 80
-        board_right = self.board_offset_x + 6 * self.pit_spacing_x + 80
-        board_top = self.board_offset_y - 70
-        board_bottom = self.board_offset_y + self.pit_spacing_y + 90
-        board_width = board_right - board_left
-        board_height = board_bottom - board_top
-        
-        # Draw board background
-        pygame.draw.rect(self.screen, DARK_GREEN, (board_left, board_top, board_width, board_height), 3)
-        
-        # Player 2 label (top - opponent)
-        p2_label = self.font_small.render("Player 2 (AI)", True, WHITE)
-        self.screen.blit(p2_label, (self.width // 2 - p2_label.get_width() // 2, self.board_offset_y - 65))
-        
-        # Player 1 label (bottom - human)
-        p1_label = self.font_small.render("Player 1 (You)", True, WHITE)
-        self.screen.blit(p1_label, (self.width // 2 - p1_label.get_width() // 2, self.board_offset_y + self.pit_spacing_y + 60))
-        
-        # Draw P2 store (left side, top)
-        p2_store_x = self.board_offset_x - 120
-        p2_store_y = self.board_offset_y + 20
-        pygame.draw.circle(self.screen, BROWN, (int(p2_store_x), int(p2_store_y)), int(self.store_radius))
-        pygame.draw.circle(self.screen, BLACK, (int(p2_store_x), int(p2_store_y)), int(self.store_radius), 3)
+
+        pygame.draw.rect(self.screen, DARK_GREEN, self.board_rect, 3)
+
+        cx = self.width // 2
+        self.screen.blit(self.surf_p2_label,
+                         (cx - self.surf_p2_label.get_width() // 2, self.board_offset_y - 65))
+        self.screen.blit(self.surf_p1_label,
+                         (cx - self.surf_p1_label.get_width() // 2,
+                          self.board_offset_y + self.pit_spacing_y + 60))
+
+        p2x, p2y = int(self.p2_store_pos[0]), int(self.p2_store_pos[1])
+        sr = int(self.store_radius)
+        pygame.draw.circle(self.screen, BROWN, (p2x, p2y), sr)
+        pygame.draw.circle(self.screen, BLACK, (p2x, p2y), sr, 3)
         p2_score = self.font_medium.render(str(self.state.board[P2_store]), True, YELLOW)
-        self.screen.blit(p2_score, (int(p2_store_x - p2_score.get_width() // 2), 
-                                     int(p2_store_y - p2_score.get_height() // 2)))
-        store_label = self.font_tiny.render("AI Store", True, WHITE)
-        self.screen.blit(store_label, (int(p2_store_x - store_label.get_width() // 2), int(p2_store_y - 100)))
-        
-        # Draw P2 pits (top, reversed order)
+        self.screen.blit(p2_score, (p2x - p2_score.get_width() // 2, p2y - p2_score.get_height() // 2))
+        self.screen.blit(self.surf_ai_store_label,
+                         (p2x - self.surf_ai_store_label.get_width() // 2, p2y - 100))
+
+        legal_moves = self._get_legal_moves()
+
         for i, pit_idx in enumerate(reversed(P2_pits)):
-            x = self.board_offset_x + self.pit_spacing_x * (5 - i)
-            y = self.board_offset_y + 20
-            is_hovered = pit_idx == self.hovered_pit
-            self.draw_pit(x, y, pit_idx, is_hovered=is_hovered)
-            label = self.font_tiny.render(str(i + 1), True, WHITE)
-            self.screen.blit(label, (x - label.get_width() // 2, y + 70))
-        
-        # Draw P1 pits (bottom, normal order)
+            x, y = self.p2_pit_positions[i]
+            self.draw_pit(x, y, pit_idx, legal_moves, is_hovered=(pit_idx == self.hovered_pit))
+            lbl = self.surf_pit_numbers[i]
+            self.screen.blit(lbl, (x - lbl.get_width() // 2, y + 70))
+
         for i, pit_idx in enumerate(P1_pits):
-            x = self.board_offset_x + self.pit_spacing_x * i
-            y = self.board_offset_y + self.pit_spacing_y
-            is_hovered = pit_idx == self.hovered_pit
-            self.draw_pit(x, y, pit_idx, is_hovered=is_hovered)
-            label = self.font_tiny.render(str(i + 1), True, WHITE)
-            self.screen.blit(label, (x - label.get_width() // 2, y + 70))
-        
-        # Draw P1 store (right side, bottom)
-        p1_store_x = self.board_offset_x + 5.5 * self.pit_spacing_x + 80
-        p1_store_y = self.board_offset_y + self.pit_spacing_y
-        pygame.draw.circle(self.screen, BROWN, (int(p1_store_x), int(p1_store_y)), int(self.store_radius))
-        pygame.draw.circle(self.screen, BLACK, (int(p1_store_x), int(p1_store_y)), int(self.store_radius), 3)
+            x, y = self.p1_pit_positions[i]
+            self.draw_pit(x, y, pit_idx, legal_moves, is_hovered=(pit_idx == self.hovered_pit))
+            lbl = self.surf_pit_numbers[i]
+            self.screen.blit(lbl, (x - lbl.get_width() // 2, y + 70))
+
+        p1x, p1y = int(self.p1_store_pos[0]), int(self.p1_store_pos[1])
+        pygame.draw.circle(self.screen, BROWN, (p1x, p1y), sr)
+        pygame.draw.circle(self.screen, BLACK, (p1x, p1y), sr, 3)
         p1_score = self.font_medium.render(str(self.state.board[P1_store]), True, YELLOW)
-        self.screen.blit(p1_score, (int(p1_store_x - p1_score.get_width() // 2),
-                                     int(p1_store_y - p1_score.get_height() // 2)))
-        store_label = self.font_tiny.render("Your Store", True, WHITE)
-        self.screen.blit(store_label, (int(p1_store_x - store_label.get_width() // 2), int(p1_store_y + 75)))
-        
-        # Draw message
+        self.screen.blit(p1_score, (p1x - p1_score.get_width() // 2, p1y - p1_score.get_height() // 2))
+        self.screen.blit(self.surf_p1_store_label,
+                         (p1x - self.surf_p1_store_label.get_width() // 2, p1y + 75))
+
         if self.message and self.message_timer > 0:
             msg = self.font_small.render(self.message, True, YELLOW)
             self.screen.blit(msg, (self.width // 2 - msg.get_width() // 2, self.height - 60))
 
     def draw_game_over_screen(self):
         self.screen.fill(DARK_GREEN)
-        
-        # Overlay
         overlay = pygame.Surface((self.width, self.height))
         overlay.set_alpha(200)
         overlay.fill(BLACK)
         self.screen.blit(overlay, (0, 0))
-        
-        # Final scores
         p1_score = self.state.board[P1_store]
         p2_score = self.state.board[P2_store]
-        
         title = self.font_large.render("GAME OVER", True, YELLOW)
         self.screen.blit(title, (self.width // 2 - title.get_width() // 2, 100))
-        
-        # Scores
         p1_text = self.font_medium.render(f"Your Score: {p1_score}", True, BLUE)
         p2_text = self.font_medium.render(f"AI Score: {p2_score}", True, RED)
         self.screen.blit(p1_text, (self.width // 2 - p1_text.get_width() // 2, 200))
         self.screen.blit(p2_text, (self.width // 2 - p2_text.get_width() // 2, 260))
-        
-        # Result
         if p1_score > p2_score:
             result_text = "YOU WIN! 🎉"
             result_color = GREEN
@@ -274,73 +278,56 @@ class KalahGUI:
         result = self.font_large.render(result_text, True, result_color)
         self.screen.blit(result, (self.width // 2 - result.get_width() // 2, 350))
         
-        # Buttons
         self.btn_play_again.draw(self.screen, self.font_medium)
         self.btn_home.draw(self.screen, self.font_medium)
 
     def get_pit_at_position(self, pos):
-        """Get pit index at mouse position, or None if no pit"""
-        # Check P1 pits (bottom row)
+        mx, my = pos
+        r2 = self.pit_radius ** 2
         for i, pit_idx in enumerate(P1_pits):
-            x = self.board_offset_x + self.pit_spacing_x * i
-            y = self.board_offset_y + self.pit_spacing_y
-            distance = ((pos[0] - x) ** 2 + (pos[1] - y) ** 2) ** 0.5
-            if distance < self.pit_radius:
+            x, y = self.p1_pit_positions[i]
+            if (mx - x) ** 2 + (my - y) ** 2 < r2:
                 return pit_idx
-        
-        # Check P2 pits (top row)
         for i, pit_idx in enumerate(reversed(P2_pits)):
-            x = self.board_offset_x + self.pit_spacing_x * (5 - i)
-            y = self.board_offset_y + 20
-            distance = ((pos[0] - x) ** 2 + (pos[1] - y) ** 2) ** 0.5
-            if distance < self.pit_radius:
+            x, y = self.p2_pit_positions[i]
+            if (mx - x) ** 2 + (my - y) ** 2 < r2:
                 return pit_idx
-        
         return None
 
     def handle_pit_click(self, pos):
-        """Check if a pit was clicked and return the pit index if valid"""
         if self.ai_thinking or player(self.state) != P1:
             return None
-        
-        legal_moves = actions(self.state)
         pit = self.get_pit_at_position(pos)
-        
-        if pit is not None and pit in legal_moves:
+        if pit is not None and pit in self._get_legal_moves():
             return pit
-        
         return None
 
     def ai_move_thread(self):
-        """Run AI move in background thread"""
         self.ai_move = self.ai.choose_action(self.state)
         self.ai_thinking = False
 
     def update(self):
-        """Update game state"""
         self.message_timer -= 1
-        
-        if self.mode == GameMode.PLAYING and not terminal_test(self.state):
-            if player(self.state) == P2 and not self.ai_thinking:
-                # AI's turn
-                self.ai_thinking = True
-                thread = threading.Thread(target=self.ai_move_thread, daemon=True)
-                thread.start()
-            
-            # Apply AI move if ready
-            if self.ai_move is not None:
-                self.state = result(self.state, self.ai_move)
-                self.ai_move = None
-                self.selected_pit = None
-                
-                if terminal_test(self.state):
-                    self.mode = GameMode.GAME_OVER
-        
-        if self.mode == GameMode.PLAYING and terminal_test(self.state):
+
+        if self.mode != GameMode.PLAYING:
+            return
+
+        if terminal_test(self.state):
             self.mode = GameMode.GAME_OVER
+            return
+
+        if player(self.state) == P2 and not self.ai_thinking:
+            self.ai_thinking = True
+            threading.Thread(target=self.ai_move_thread, daemon=True).start()
+
+        if self.ai_move is not None:
+            self.state = result(self.state, self.ai_move)
+            self.ai_move = None
+            self.selected_pit = None
+            if terminal_test(self.state):
+                self.mode = GameMode.GAME_OVER
 
     def handle_click(self, pos):
-        """Handle mouse click events"""
         if self.mode == GameMode.HOME:
             if self.btn_ai_easy.is_clicked(pos):
                 self.start_game(4)
@@ -382,7 +369,6 @@ class KalahGUI:
         return True
 
     def start_game(self, depth):
-        """Start a new game with specified AI depth"""
         self.state = initial_state()
         self.ai = AlphaBetaPlayer(P2, max_depth=depth, eval_func="weighted")
         self.mode = GameMode.PLAYING
@@ -392,7 +378,6 @@ class KalahGUI:
         self.message = ""
 
     def handle_motion(self, pos):
-        """Handle mouse motion for button hover effects and pit highlighting"""
         self.btn_back.update(pos)
         self.btn_restart.update(pos)
         if self.mode == GameMode.HOME:
@@ -404,16 +389,13 @@ class KalahGUI:
             self.btn_play_again.update(pos)
             self.btn_home.update(pos)
         elif self.mode == GameMode.PLAYING:
-            # Update pit hover detection (only for player's pits)
             pit = self.get_pit_at_position(pos)
-            # Only highlight player's pits (P1)
             if pit is not None and pit in P1_pits and player(self.state) == P1:
                 self.hovered_pit = pit
             else:
                 self.hovered_pit = None
 
     def draw(self):
-        """Draw the current screen"""
         if self.mode == GameMode.HOME:
             self.draw_home_screen()
         elif self.mode == GameMode.PLAYING:
