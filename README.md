@@ -1,114 +1,82 @@
-# Artificial-Intelligence-
+# Kalaha GUI – Interactive Game Against AI
 
-Python starter scaffold for building a turn-based game with:
-- game logic (`src/game`)
-- UI layer (`src/ui`)
-- AI agents (`src/agent`)
+A complete graphical user interface for playing Kalaha against a powerful minimax AI opponent.
 
-The app now runs in a separate window using `pygame`.
+## Features
 
-## Virtual environment (Windows / PowerShell)
+- **Interactive Pygame GUI** – Visual game board with clickable pits
+- **Multiple Difficulty Levels**:
+  - Easy (AI depth: 4)
+  - Medium (AI depth: 6)
+  - Hard (AI depth: 8)
+- **Real-time Game State** – See the board, scores, and available moves
+- **AI Opponent** – Uses alpha-beta pruning minimax algorithm with evalution functions
+- **Game Rules Enforced**:
+  - Distribute stones counter-clockwise
+  - Extra turn if landing in your store
+  - Capture opposite pit if landing in empty pit on your side
+  - Game ends when one side is empty
+- **Smooth UI** – Buttons, hover effects, status indicators
 
-Create a virtual environment in the repo root:
-
-```powershell
-python -m venv .venv
+## How to Run
+From the `src` directory:
+```bash
+python kalaha_gui.py
 ```
 
-Activate it:
+## How to Play
 
-```powershell
-.\.venv\Scripts\Activate.ps1
+1. **Start Screen**: Select AI difficulty (Easy, Medium, or Hard)
+2. **During Game**:
+   - **Your Turn**: You play as Player 1 (bottom side)
+     - Click on any pit on your side to play a move
+     - Highlighted pits show valid moves
+   - **AI Turn**: The AI (Player 2, top side) thinks and makes a move automatically
+3. **Game Over**: See final scores and decide to play again or return home
+
+## Game Board Layout
+
+```
+        Player 2 (AI)
+    [Pit] [Pit] [Pit] [Pit] [Pit] [Pit]
+[Store]                              [Store]
+    [Pit] [Pit] [Pit] [Pit] [Pit] [Pit]
+        Player 1 (You)
 ```
 
-If PowerShell blocks activation, allow scripts for your current session and try again:
+- **Pits**: Numbered 1-6 for each player
+- **Stores**: Large circles on the sides (left for you, right for AI)
+- **Stones**: Displayed in the center of each pit
 
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
-```
+## Kalaha Rules
 
-Upgrade packaging tools (recommended):
+1. **Setup**: Each pit starts with 4 stones
+2. **Turn**: Pick a pit and distribute all its stones counter-clockwise
+3. **Extra Turn**: If your last stone lands in your store, play again
+4. **Capture**: If your last stone lands in an empty pit on your side and the opposite pit has stones, you capture both
+5. **Game End**: When one player's pits are empty, the opponent collects remaining stones
+6. **Win**: Highest score wins
 
-```powershell
-python -m pip install --upgrade pip
-```
+## AI Difficulty
 
-## Project structure
+- **Easy (Depth 4)**: Looks 4 moves ahead – good for learning
+- **Medium (Depth 6)**: Looks 6 moves ahead – balanced challenge
+- **Hard (Depth 8)**: Looks 8 moves ahead – expert level (may take time to think)
 
-```text
-.
-|-- assets/
-|   `-- .gitkeep
-|-- scripts/
-|   `-- run.ps1
-|-- src/
-|   |-- agent/
-|   |   |-- __init__.py
-|   |   |-- base.py
-|   |   |-- minimax_agent.py
-|   |   `-- random_agent.py
-|   |-- common/
-|   |   |-- __init__.py
-|   |   `-- types.py
-|   |-- game/
-|   |   |-- __init__.py
-|   |   |-- engine.py
-|   |   |-- rules.py
-|   |   `-- state.py
-|   |-- ui/
-|   |   |-- __init__.py
-|   |   |-- cli.py
-|   |   |-- pygame_ui.py
-|   |   `-- renderer.py
-|   `-- main.py
-|-- tests/
-|   |-- test_agents.py
-|   `-- test_engine.py
-|-- .gitignore
-|-- pyproject.toml
-`-- requirements.txt
-```
+## Files
 
-## Install dependencies
+- `src/kalaha_gui.py` – Main GUI application
+- `scripts/run_gui.ps1` – PowerShell launcher script
+- `src/game_engine.py` – Game logic and rules
+- `src/minmax_pruning.py` – AI algorithm with alpha-beta pruning
+- `src/evaluation.py` – AI evaluation functions
 
-```powershell
-python -m pip install -r requirements.txt
-```
+## Requirements
 
-Or (without activation):
+- Python 3.10+
+- pygame >= 2.5
 
-```powershell
-.\.venv\Scripts\python -m pip install -r requirements.txt
-```
-
-Troubleshooting: if you see `No module named pip`, run:
-
-```powershell
-python -m ensurepip --upgrade
-python -m pip --version
-```
-
-## Run
-
-```powershell
-python -m src.main
-```
-
-Or you can run with the venv interpreter directly:
-
-```powershell
-.\.venv\Scripts\python -m src.main
-```
-
-## Test
-
-```powershell
-python -m pytest -q
-```
-
-Or:
-
-```powershell
-.\.venv\Scripts\python -m pytest -q
+Install with:
+```bash
+pip install pygame
 ```
