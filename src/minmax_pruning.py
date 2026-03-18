@@ -11,9 +11,8 @@ from evaluation import (
 import math
 
 
-# helper function to help the ai search go through the most promising moves first
+# orders moves so the search tries the most promising ones first
 def order_moves(state, legal_moves):
-    # information about the player and board state to classify moves
     current_player = state.current_player
     board = state.board
     own_store = P1_store if current_player == P1 else P2_store
@@ -23,22 +22,20 @@ def order_moves(state, legal_moves):
     capture_moves = []
     other_moves = []
 
-    # find out where the last stone would land for each move and classify it
     for move in legal_moves:
         stones = board[move]
         last_pos = (move + stones) % 14
 
         if last_pos == own_store:
-            extra_turn_moves.append(move) # If the last position is your own store, this move is treated as promising
+            extra_turn_moves.append(move)
         elif last_pos in own_pits and board[last_pos] == 0 and board[opposite_pit(last_pos)] > 0:
-            capture_moves.append(move) # if it lands in an empty pit on your side and the opposite pit has stones, it's a capture move, which is also promising
+            capture_moves.append(move)
         else:
-            other_moves.append(move) # normal move, less promising than the above two categories
+            other_moves.append(move)
 
     return extra_turn_moves + capture_moves + other_moves
 
 
-# minimax with alpha-beta pruning
 class AlphaBetaPlayer:
     def __init__(self, player_id, max_depth=8, eval_func="weighted"):
         self.player_id = player_id
@@ -50,7 +47,6 @@ class AlphaBetaPlayer:
     def choose_action(self, state):
         self.nodes_explored = 0
 
-        # starting point for the search
         best_action = None
         best_value = -math.inf
 

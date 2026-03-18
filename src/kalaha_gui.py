@@ -20,6 +20,7 @@ RED = (220, 20, 60)
 BLUE = (30, 144, 255)
 YELLOW = (255, 255, 0)
 
+
 class GameMode(Enum):
     HOME = 1
     PLAYING = 2
@@ -68,24 +69,27 @@ class KalahGUI:
         self.message_timer = 0
         self.ai_thinking = False
         self.ai_move = None
-        
-        # Board dimensions
+
         self.pit_radius = 40
         self.store_radius = 60
         self.pit_spacing_x = 160
         self.pit_spacing_y = 160
-        
-        # Calculate centered board position
+
         board_width = 6 * self.pit_spacing_x
         board_height = self.pit_spacing_y + 100
         self.board_offset_x = (self.width - board_width) // 2 + 30
         self.board_offset_y = (self.height - board_height) // 2 - 10
-        
+
         self._legal_moves_cache = set()
         self._cached_state_id = None
         self.setup_buttons()
         self._precompute_positions()
-        self._cache_static_surfaces()
+
+        self.surf_ai_store_label = self.font_tiny.render("AI Store", True, WHITE)
+        self.surf_p1_store_label = self.font_tiny.render("Your Store", True, WHITE)
+        self.surf_p2_label = self.font_small.render("Player 2 (AI)", True, WHITE)
+        self.surf_p1_label = self.font_small.render("Player 1 (You)", True, WHITE)
+        self.surf_pit_numbers = [self.font_tiny.render(str(i + 1), True, WHITE) for i in range(6)]
 
     def _precompute_positions(self):
         self.p1_pit_positions = [
@@ -107,14 +111,6 @@ class KalahGUI:
         board_bottom = self.board_offset_y + self.pit_spacing_y + 90
         self.board_rect = pygame.Rect(board_left, board_top,
                                       board_right - board_left, board_bottom - board_top)
-
-    def _cache_static_surfaces(self):
-        self.surf_ai_store_label = self.font_tiny.render("AI Store", True, WHITE)
-        self.surf_p1_store_label = self.font_tiny.render("Your Store", True, WHITE)
-        self.surf_p2_label = self.font_small.render("Player 2 (AI)", True, WHITE)
-        self.surf_p1_label = self.font_small.render("Player 1 (You)", True, WHITE)
-        self.surf_pit_numbers = [self.font_tiny.render(str(i + 1), True, WHITE)
-                                 for i in range(6)]
 
     def _get_legal_moves(self):
         state_id = id(self.state)
@@ -159,21 +155,18 @@ class KalahGUI:
         self.btn_ai_hard.draw(self.screen, self.font_medium)
         self.btn_quit.draw(self.screen, self.font_medium)
         
-        instructions = [
-            "Select AI difficulty to start playing",
-            "",
-            "Game Rules:",
-            "• Click on pits on your side (bottom) to play",
-            "• Stones are distributed counter-clockwise",
-            "• Landing in your store gives you an extra turn",
-            "• Landing in an empty pit captures opposite pit",
-            "• Game ends when one side is empty"
+        rules = [
+            "How to play:",
+            "- Click a pit on your side (bottom row) to move",
+            "- Stones go counter-clockwise, skipping opponent's store",
+            "- Land in your store = extra turn",
+            "- Land in an empty pit on your side = capture opposite pit",
+            "- Game ends when one side runs out of stones",
         ]
         y = 500
-        for instruction in instructions:
-            if instruction:
-                text = self.font_tiny.render(instruction, True, WHITE)
-                self.screen.blit(text, (100, y))
+        for line in rules:
+            text = self.font_tiny.render(line, True, WHITE)
+            self.screen.blit(text, (100, y))
             y += 25
 
     def draw_pit(self, x, y, pit_idx, legal_moves, is_hovered=False):

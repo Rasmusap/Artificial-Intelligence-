@@ -51,8 +51,8 @@ def play_game(mode="human_vs_ai", ai_depth=8, ai_eval="weighted"):
 
     if mode == "human_vs_ai":
         ai = AlphaBetaPlayer(P2, max_depth=ai_depth, eval_func=ai_eval)
-        print(f"\n  You are Player 1 (bottom). AI is Player 2 (top).")
-        print(f"  AI depth: {ai_depth}, eval: {ai_eval}\n")
+        print(f"\n  You play as Player 1 (bottom), AI is Player 2 (top).")
+        print(f"  depth: {ai_depth}, eval: {ai_eval}\n")
     elif mode == "ai_vs_ai":
         ai1 = AlphaBetaPlayer(P1, max_depth=ai_depth, eval_func=ai_eval)
         ai2 = AlphaBetaPlayer(P2, max_depth=ai_depth, eval_func=ai_eval)
@@ -85,7 +85,6 @@ def play_game(mode="human_vs_ai", ai_depth=8, ai_eval="weighted"):
         state = result(state, action)
         move_count += 1
 
-    # Game over
     display(state)
     p1 = state.board[P1_store]
     p2 = state.board[P2_store]
@@ -101,8 +100,7 @@ def play_game(mode="human_vs_ai", ai_depth=8, ai_eval="weighted"):
 
 if __name__ == "__main__":
     print("\n" + "=" * 40)
-    print("       K A L A H A")
-    print("     with AI opponent")
+    print("         KALAHA")
     print("=" * 40)
 
     play_game(mode="human_vs_ai", ai_depth=8, ai_eval="weighted")
